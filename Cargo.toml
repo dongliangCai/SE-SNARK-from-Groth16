@@ -28,6 +28,10 @@ tracing = { version = "0.1", default-features = false, features = [ "attributes"
 derivative = { version = "2.0", features = ["use_core"], optional = true}
 
 rayon = { version = "1", optional = true }
+rust-crypto = { version = "0.2.36"}
+num = { version ="0.3"}
+
+sha256 = {version = "1.0.3"}
 
 [dev-dependencies]
 csv = { version = "1" }

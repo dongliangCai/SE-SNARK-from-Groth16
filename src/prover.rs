@@ -6,12 +6,22 @@ use ark_relations::r1cs::{
     ConstraintMatrices, ConstraintSynthesizer, ConstraintSystem, OptimizationGoal,
     Result as R1CSResult,
 };
+use std::time::{Duration, Instant};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use ark_serialize::{
+    CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
+};
 use ark_std::rand::Rng;
 use ark_std::{
     cfg_into_iter, cfg_iter,
     ops::{AddAssign, Mul},
     vec::Vec,
 };
+
+use sha256::{digest_bytes, try_digest};
+use crypto::sha2::Sha256;
+use crypto::digest::Digest;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -59,6 +69,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         input_assignment: &[E::ScalarField],
         aux_assignment: &[E::ScalarField],
     ) -> R1CSResult<Proof<E>> {
+
+        // let mut Compute_C = Duration::new(0, 0);
         let c_acc_time = start_timer!(|| "Compute C");
         let h_assignment = cfg_into_iter!(h)
             .map(|s| s.into_bigint())
@@ -78,7 +90,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
             .into_group()
             .mul_bigint(&r.into_bigint())
             .mul_bigint(&s.into_bigint());
-
+        // Compute_C += start.elapsed();
+        // println!("Average C time: {:?} seconds", Compute_C);
         end_timer!(c_acc_time);
 
         let input_assignment = input_assignment
@@ -121,13 +134,41 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         end_timer!(b_g2_acc_time);
 
         let c_time = start_timer!(|| "Finish C");
-        let mut g_c = s_g_a;
-        g_c += &r_g1_b;
-        g_c -= &r_s_delta_g1;
-        g_c += &l_aux_acc;
+        // add random oracle
+
+        //let o = hash(A,B2);
+        //let o_g1_b = g1_b.mul_bigint(&o.into_bigint());
+        //g_c += &o_g1_b;
+        let mut hash_time = Duration::new(0, 0);
+        let start = Instant::now();
+        let mut s_a = DefaultHasher::new();
+        g_a.hash(&mut s_a);
+        let mut s_b = DefaultHasher::new();
+        g2_b.hash(&mut s_b);
+
+        let mut s1 = s_a.finish().to_string();
+        let s2 = s_b.finish().to_string();
+        s1 += &s2;
+        let mut hasher = Sha256::new();
+        hasher.input_str(&s1);
+        hash_time += start.elapsed();
+        //println!("hash time: {:?} seconds", hash_time);
+
+        let o = E::ScalarField::from_be_bytes_mod_order(hasher.result_str().as_bytes());
+        let o_g1_b = g1_b.mul_bigint(&o.into_bigint());
+
+        let mut g_c = s_g_a;    //As
+        g_c += &r_g1_b;         //Br
+        g_c += &o_g1_b;         //Bo
+        g_c -= &r_s_delta_g1;   //rs delta
+        g_c += &l_aux_acc;      
         g_c += &h_acc;
         end_timer!(c_time);
 
+        
+        // println!("g_a size: {:?}", g_a.uncompressed_size());
+        // println!("g2_b size: {:?}", g2_b.uncompressed_size());
+        // println!("g_c size: {:?}", g_c.uncompressed_size());
         Ok(Proof {
             a: g_a.into_affine(),
             b: g2_b.into_affine(),

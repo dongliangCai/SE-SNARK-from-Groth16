@@ -31,6 +31,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let g1_generator = E::G1::rand(rng);
         let g2_generator = E::G2::rand(rng);
 
+
         Self::generate_parameters_with_qap(
             circuit,
             alpha,
@@ -198,6 +199,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
             alpha_g1: alpha_g1.into_affine(),
             beta_g2: beta_g2.into_affine(),
             gamma_g2: gamma_g2.into_affine(),
+            delta_g1: delta_g1.into_affine(),
             delta_g2: delta_g2.into_affine(),
             gamma_abc_g1: E::G1::normalize_batch(&gamma_abc_g1),
         };
@@ -210,6 +212,9 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let l_query = E::G1::normalize_batch(&l_query);
         end_timer!(batch_normalization_time);
         end_timer!(setup_time);
+
+        b_g1_query.len();
+        b_g2_query.len();
 
         Ok(ProvingKey {
             vk,

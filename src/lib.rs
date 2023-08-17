@@ -50,7 +50,7 @@ use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
 use ark_std::rand::RngCore;
 use ark_std::{marker::PhantomData, vec::Vec};
 use r1cs_to_qap::{LibsnarkReduction, R1CSToQAP};
-
+use std::time::{Duration, Instant};
 /// The SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
 pub struct Groth16<E: Pairing, QAP: R1CSToQAP = LibsnarkReduction> {
     _p: PhantomData<(E, QAP)>,
@@ -67,7 +67,15 @@ impl<E: Pairing, QAP: R1CSToQAP> SNARK<E::ScalarField> for Groth16<E, QAP> {
         circuit: C,
         rng: &mut R,
     ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error> {
+
+        // let start = Instant::now();
+        // let mut crs_generate = Duration::new(0, 0);
         let pk = Self::generate_random_parameters_with_reduction(circuit, rng)?;
+        // crs_generate += start.elapsed();
+        // let crs_generate =
+        // crs_generate.subsec_nanos() as f64 / 1_000_000_000f64 + (crs_generate.as_secs() as f64);
+        //println!("crs generate time: {:?}", crs_generate);
+
         let vk = pk.vk.clone();
 
         Ok((pk, vk))
